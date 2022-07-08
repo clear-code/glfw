@@ -467,7 +467,9 @@ static void fitToMonitor(_GLFWwindow* window)
                  mi.rcMonitor.left,
                  mi.rcMonitor.top,
                  mi.rcMonitor.right - mi.rcMonitor.left,
-                 mi.rcMonitor.bottom - mi.rcMonitor.top,
+                 _glfw.hints.window.softFullscreen ?
+                     mi.rcMonitor.bottom - mi.rcMonitor.top + 1 :
+                     mi.rcMonitor.bottom - mi.rcMonitor.top,
                  SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS);
 }
 
@@ -2309,7 +2311,9 @@ void _glfwSetWindowMonitorWin32(_GLFWwindow* window,
                      mi.rcMonitor.left,
                      mi.rcMonitor.top,
                      mi.rcMonitor.right - mi.rcMonitor.left,
-                     mi.rcMonitor.bottom - mi.rcMonitor.top,
+                     _glfw.hints.window.softFullscreen ?
+                         mi.rcMonitor.bottom - mi.rcMonitor.top + 1 :
+                         mi.rcMonitor.bottom - mi.rcMonitor.top,
                      flags);
     }
     else
