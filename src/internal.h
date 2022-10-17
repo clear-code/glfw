@@ -552,11 +552,14 @@ struct _GLFWwindow
 
     // Preedit texts
     unsigned int*       preeditText;
-    int                 ntext;
-    int                 ctext;
-    int*                preeditAttributeBlocks;
-    int                 nblocks;
-    int                 cblocks;
+    int                 preeditLength;
+    int                 preeditLengthAllocated;
+    int*                preeditBlockSizes;
+    int                 preeditBlockCount;
+    int                 preeditBlockCountAllocated;
+    int                 preeditFocusedBlockIndex;
+    int                 preeditCaretIndex;
+
     int                 preeditCursorPosX, preeditCursorPosY, preeditCursorHeight;
 
     _GLFWcontext        context;
@@ -935,7 +938,7 @@ void _glfwInputKey(_GLFWwindow* window,
                    int key, int scancode, int action, int mods);
 void _glfwInputChar(_GLFWwindow* window,
                     uint32_t codepoint, int mods, GLFWbool plain);
-void _glfwInputPreedit(_GLFWwindow* window, int focusedBlock, int caret);
+void _glfwInputPreedit(_GLFWwindow* window);
 void _glfwInputIMEStatus(_GLFWwindow* window);
 void _glfwInputScroll(_GLFWwindow* window, double xoffset, double yoffset);
 void _glfwInputMouseClick(_GLFWwindow* window, int button, int action, int mods);

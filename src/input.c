@@ -332,17 +332,17 @@ void _glfwInputChar(_GLFWwindow* window, uint32_t codepoint, int mods, GLFWbool 
 
 // Notifies shrared code of a preedit event
 //
-void _glfwInputPreedit(_GLFWwindow* window, int focusedBlock, int caret)
+void _glfwInputPreedit(_GLFWwindow* window)
 {
     if (window->callbacks.preedit)
     {
         window->callbacks.preedit((GLFWwindow*) window,
-                                  window->ntext,
+                                  window->preeditLength,
                                   window->preeditText,
-                                  window->nblocks,
-                                  window->preeditAttributeBlocks,
-                                  focusedBlock,
-                                  caret);
+                                  window->preeditBlockCount,
+                                  window->preeditBlockSizes,
+                                  window->preeditFocusedBlockIndex,
+                                  window->preeditCaretIndex);
     }
 }
 

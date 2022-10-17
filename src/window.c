@@ -501,8 +501,8 @@ GLFWAPI void glfwDestroyWindow(GLFWwindow* handle)
     // Clear memory for preedit text
     if (window->preeditText)
         _glfw_free(window->preeditText);
-    if (window->preeditAttributeBlocks)
-        _glfw_free(window->preeditAttributeBlocks);
+    if (window->preeditBlockSizes)
+        _glfw_free(window->preeditBlockSizes);
     _glfw_free(window);
 }
 

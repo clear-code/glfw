@@ -557,7 +557,7 @@ static void _ximPreeditDoneCallback(XIC xic, XPointer clientData, XPointer callD
 //
 static void _ximPreeditDrawCallback(XIC xic, XPointer clientData, XIMPreeditDrawCallbackStruct *callData)
 {
-    int i, j, length, ctext, rstart, rend;
+    int i, j, textLen, textAllcLen, rstart, rend;
     XIMText* text;
     const char* src;
     unsigned int codePoint;
@@ -568,49 +568,51 @@ static void _ximPreeditDrawCallback(XIC xic, XPointer clientData, XIMPreeditDraw
     if (!callData->text)
     {
         // preedit text is empty
-        window->ntext = 0;
-        window->nblocks = 0;
-        _glfwInputPreedit(window, 0, 0);
+        window->preeditLength = 0;
+        window->preeditBlockCount = 0;
+        window->preeditFocusedBlockIndex = 0;
+        window->preeditCaretIndex = 0;
+        _glfwInputPreedit(window);
         return;
     }
     else
     {
         text = callData->text;
-        length = callData->chg_length;
+        textLen = callData->chg_length;
         if (text->encoding_is_wchar)
         {
             // wchar is not supported
             return;
         }
-        ctext = window->ctext;
-        while (ctext < length + 1)
+        textAllcLen = window->preeditLengthAllocated;
+        while (textAllcLen < textLen + 1)
         {
-            ctext = (ctext == 0) ? 1 : ctext * 2;
+            textAllcLen = (textAllcLen == 0) ? 1 : textAllcLen * 2;
         }
-        if (ctext != window->ctext)
+        if (textAllcLen != window->preeditLengthAllocated)
         {
-            preeditText = _glfw_realloc(window->preeditText, sizeof(unsigned int) * ctext);
+            preeditText = _glfw_realloc(window->preeditText, sizeof(unsigned int) * textAllcLen);
             if (preeditText == NULL)
             {
                 return;
             }
             window->preeditText = preeditText;
-            window->ctext = ctext;
+            window->preeditLengthAllocated = textAllcLen;
         }
-        window->ntext = length;
-        window->preeditText[length] = 0;
-        if (window->cblocks == 0)
+        window->preeditLength = textLen;
+        window->preeditText[textLen] = 0;
+        if (window->preeditBlockCountAllocated == 0)
         {
-            window->preeditAttributeBlocks = _glfw_calloc(4, sizeof(int));
-            window->cblocks = 4;
+            window->preeditBlockSizes = _glfw_calloc(4, sizeof(int));
+            window->preeditBlockCountAllocated = 4;
         }
         src = text->string.multi_byte;
         rend = 0;
-        rstart = length;
+        rstart = textLen;
         for (i = 0, j = 0; i < text->length; i++)
         {
             codePoint = _glfwDecodeUTF8(&src);
-            if (i < callData->chg_first || callData->chg_first + length < i)
+            if (i < callData->chg_first || callData->chg_first + textLen < i)
             {
                 continue;
             }
@@ -625,47 +627,57 @@ static void _ximPreeditDrawCallback(XIC xic, XPointer clientData, XIMPreeditDraw
                 }
             }
         }
-        if (rstart == length)
+        if (rstart == textLen)
         {
-            window->nblocks = 1;
-            window->preeditAttributeBlocks[0] = length;
-            window->preeditAttributeBlocks[1] = 0;
-            _glfwInputPreedit(window, 0, callData->caret);
+            window->preeditBlockCount = 1;
+            window->preeditBlockSizes[0] = textLen;
+            window->preeditBlockSizes[1] = 0;
+            window->preeditFocusedBlockIndex = 0;
+            window->preeditCaretIndex = callData->caret;
+            _glfwInputPreedit(window);
         }
         else if (rstart == 0)
         {
-            if (rend == length -1)
+            if (rend == textLen -1)
             {
-                window->nblocks = 1;
-                window->preeditAttributeBlocks[0] = length;
-                window->preeditAttributeBlocks[1] = 0;
-                _glfwInputPreedit(window, 0, callData->caret);
+                window->preeditBlockCount = 1;
+                window->preeditBlockSizes[0] = textLen;
+                window->preeditBlockSizes[1] = 0;
+                window->preeditFocusedBlockIndex = 0;
+                window->preeditCaretIndex = callData->caret;
+                _glfwInputPreedit(window);
             }
             else
             {
-                window->nblocks = 2;
-                window->preeditAttributeBlocks[0] = rend + 1;
-                window->preeditAttributeBlocks[1] = length - rend - 1;
-                window->preeditAttributeBlocks[2] = 0;
-                _glfwInputPreedit(window, 0, callData->caret);
+                window->preeditBlockCount = 2;
+                window->preeditBlockSizes[0] = rend + 1;
+                window->preeditBlockSizes[1] = textLen - rend - 1;
+                window->preeditBlockSizes[2] = 0;
+                window->preeditFocusedBlockIndex = 0;
+                window->preeditCaretIndex = callData->caret;
+                _glfwInputPreedit(window);
             }
         }
-        else if (rend == length - 1)
+        else if (rend == textLen - 1)
         {
-            window->nblocks = 2;
-            window->preeditAttributeBlocks[0] = rstart;
-            window->preeditAttributeBlocks[1] = length - rstart;
-            window->preeditAttributeBlocks[2] = 0;
-            _glfwInputPreedit(window, 1, callData->caret);
+            window->preeditBlockCount = 2;
+            window->preeditBlockSizes[0] = rstart;
+            window->preeditBlockSizes[1] = textLen - rstart;
+            window->preeditBlockSizes[2] = 0;
+            window->preeditFocusedBlockIndex = 1;
+            window->preeditCaretIndex = callData->caret;
+            _glfwInputPreedit(window);
         }
         else
         {
-            window->nblocks = 3;
-            window->preeditAttributeBlocks[0] = rstart;
-            window->preeditAttributeBlocks[1] = rend - rstart + 1;
-            window->preeditAttributeBlocks[2] = length - rend - 1;
-            window->preeditAttributeBlocks[3] = 0;
-            _glfwInputPreedit(window, 1, callData->caret);
+            window->preeditBlockCount = 3;
+            window->preeditBlockSizes[0] = rstart;
+            window->preeditBlockSizes[1] = rend - rstart + 1;
+            window->preeditBlockSizes[2] = textLen - rend - 1;
+            window->preeditBlockSizes[3] = 0;
+            window->preeditFocusedBlockIndex = 1;
+            window->preeditCaretIndex = callData->caret;
+            _glfwInputPreedit(window);
         }
     }
 }
@@ -3346,7 +3358,7 @@ void _glfwResetPreeditTextX11(_GLFWwindow* window)
     if (_glfw.x11.imStyle == STYLE_OVERTHESPOT)
         return;
 
-    if (window->ntext == 0)
+    if (window->preeditLength == 0)
         return;
 
     preedit_attr = XVaCreateNestedList(0, XNPreeditState, &preedit_state, NULL);
@@ -3359,9 +3371,11 @@ void _glfwResetPreeditTextX11(_GLFWwindow* window)
     XSetICValues(ic, XNPreeditAttributes, preedit_attr, NULL);
     XFree(preedit_attr);
 
-    window->ntext = 0;
-    window->nblocks = 0;
-    _glfwInputPreedit(window, 0, 0);
+    window->preeditLength = 0;
+    window->preeditBlockCount = 0;
+    window->preeditFocusedBlockIndex = 0;
+    window->preeditCaretIndex = 0;
+    _glfwInputPreedit(window);
 
     XFree (result);
 }
