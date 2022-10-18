@@ -517,12 +517,12 @@ static void ime_callback(GLFWwindow* window)
     printf("IME switched: %s\n", currentIMEStatus ? "ON" : "OFF");
 }
 
-static void preedit_callback(GLFWwindow* window, int strLength,
-                             unsigned int* string, int blockLength,
-                             int* blocks, int focusedBlock, int caret)
+static void preedit_callback(GLFWwindow* window, int preeditCount,
+                             unsigned int* preeditString, int blockCount,
+                             int* blockSizes, int focusedBlock, int caret)
 {
-    int blockIndex = -1, blockCount = 0;
-    if (strLength == 0 || blockLength == 0)
+    int blockIndex = -1, remainingBlockSize = 0;
+    if (preeditCount == 0 || blockCount == 0)
     {
         strcpy(preeditBuf, "(empty)");
         return;
@@ -530,7 +530,7 @@ static void preedit_callback(GLFWwindow* window, int strLength,
 
     strcpy(preeditBuf, "");
 
-    for (int i = 0; i < strLength; i++)
+    for (int i = 0; i < preeditCount; i++)
     {
         char encoded[5] = "";
 
@@ -539,7 +539,7 @@ static void preedit_callback(GLFWwindow* window, int strLength,
             if (strlen(preeditBuf) + strlen("|") < MAX_PREDIT_LEN)
                 strcat(preeditBuf, "|");
         }
-        if (blockCount == 0)
+        if (remainingBlockSize == 0)
         {
             if (blockIndex == focusedBlock)
             {
@@ -547,24 +547,24 @@ static void preedit_callback(GLFWwindow* window, int strLength,
                     strcat(preeditBuf, "]");
             }
             blockIndex++;
-            blockCount = blocks[blockIndex];
+            remainingBlockSize = blockSizes[blockIndex];
             if (blockIndex == focusedBlock)
             {
                 if (strlen(preeditBuf) + strlen("[") < MAX_PREDIT_LEN)
                     strcat(preeditBuf, "[");
             }
         }
-        encode_utf8(encoded, string[i]);
+        encode_utf8(encoded, preeditString[i]);
         if (strlen(preeditBuf) + strlen(encoded) < MAX_PREDIT_LEN)
             strcat(preeditBuf, encoded);
-        blockCount--;
+        remainingBlockSize--;
     }
     if (blockIndex == focusedBlock)
     {
         if (strlen(preeditBuf) + strlen("]") < MAX_PREDIT_LEN)
             strcat(preeditBuf, "]");
     }
-    if (caret == strLength)
+    if (caret == preeditCount)
     {
         if (strlen(preeditBuf) + strlen("|") < MAX_PREDIT_LEN)
             strcat(preeditBuf, "|");

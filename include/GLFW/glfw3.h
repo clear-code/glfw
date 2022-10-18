@@ -1909,7 +1909,7 @@ typedef void (* GLFWcharmodsfun)(GLFWwindow* window, unsigned int codepoint, int
  *  This is the function pointer type for preedit callback functions.
  *
  *  @param[in] window The window that received the event.
- *  @param[in] preedit_length Preedit string length.
+ *  @param[in] preedit_count Preedit string count.
  *  @param[in] preedit_string Preedit string.
  *  @param[in] block_count Attributed block count.
  *  @param[in] block_sizes List of attributed block size.
@@ -1922,7 +1922,7 @@ typedef void (* GLFWcharmodsfun)(GLFWwindow* window, unsigned int codepoint, int
  *  @ingroup input
  */
 typedef void (* GLFWpreeditfun)(GLFWwindow* window,
-                                int preedit_length,
+                                int preedit_count,
                                 unsigned int* preedit_string,
                                 int block_count,
                                 int* block_sizes,
@@ -5302,7 +5302,7 @@ GLFWAPI GLFWcharmodsfun glfwSetCharModsCallback(GLFWwindow* window, GLFWcharmods
  *  @callback_signature
  *  @code
  *  void function_name(GLFWwindow* window,
-                       int preedit_length,
+                       int preedit_count,
                        unsigned int* preedit_string,
                        int block_count,
                        int* block_sizes,

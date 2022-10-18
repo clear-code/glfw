@@ -263,7 +263,7 @@ The callback receives the following information.
 
 @code
 void preedit_callback(GLFWwindow* window,
-                      int preedit_length,
+                      int preedit_count,
                       unsigned int* preedit_string,
                       int block_count,
                       int* block_sizes,
@@ -273,7 +273,7 @@ void preedit_callback(GLFWwindow* window,
 }
 @endcode
 
-"preedit_length" and "preedit_string" parameter represent the whole preedit text.
+"preedit_count" and "preedit_string" parameter represent the whole preedit text.
 Each character of the preedit string is a native endian UTF-32 like @ref input_char.
 
 If you want to type the text "寿司(sushi)", Usually the callback is called several
@@ -300,7 +300,7 @@ If preedit text includes several semantic blocks, the callback returns several b
 -# preedit: [preedit_string: "わたしはすしをたべます", block_sizes: [11], focused_block: 0]
 -# preedit: [preedit_string: "私は寿司を食べます", block_sizes: [2, 7], focused_block: 1]
 
-"block_sizes" is a list of block length.  The above case, it contains the following
+"block_sizes" is a list of the sizes of each block.  The above case, it contains the following
 blocks and the second block is focused.
 
 - 私は

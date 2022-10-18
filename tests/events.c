@@ -456,43 +456,43 @@ static void char_callback(GLFWwindow* window, unsigned int codepoint)
            counter++, slot->number, glfwGetTime(), codepoint, string);
 }
 
-static void preedit_callback(GLFWwindow* window, int strLength,
-                             unsigned int* string, int blockLength,
-                             int* blocks, int focusedBlock, int caret)
+static void preedit_callback(GLFWwindow* window, int preeditCount,
+                             unsigned int* preeditString, int blockCount,
+                             int* blockSizes, int focusedBlock, int caret)
 {
     Slot* slot = glfwGetWindowUserPointer(window);
-    int i, blockIndex = -1, blockCount = 0;
+    int i, blockIndex = -1, remainingBlockSize = 0;
     int width, height;
     char encoded[5] = "";
     printf("%08x to %i at %0.3f: Preedit text ",
            counter++, slot->number, glfwGetTime());
-    if (strLength == 0 || blockLength == 0)
+    if (preeditCount == 0 || blockCount == 0)
     {
         printf("(empty)\n");
     }
     else
     {
-        for (i = 0; i < strLength; i++)
+        for (i = 0; i < preeditCount; i++)
         {
-            if (blockCount == 0)
+            if (remainingBlockSize == 0)
             {
                 if (blockIndex == focusedBlock)
                     printf("]");
                 blockIndex++;
-                blockCount = blocks[blockIndex];
+                remainingBlockSize = blockSizes[blockIndex];
                 printf("\n   block %d: ", blockIndex);
                 if (blockIndex == focusedBlock)
                     printf("[");
             }
             if (i == caret)
                 printf("|");
-            encode_utf8(encoded, string[i]);
+            encode_utf8(encoded, preeditString[i]);
             printf("%s", encoded);
-            blockCount--;
+            remainingBlockSize--;
         }
         if (blockIndex == focusedBlock)
             printf("]");
-        if (caret == strLength)
+        if (caret == preeditCount)
             printf("|");
         printf("\n");
         glfwGetWindowSize(window, &width, &height);
