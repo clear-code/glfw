@@ -552,11 +552,11 @@ struct _GLFWwindow
 
     // Preedit texts
     unsigned int*       preeditText;
-    int                 preeditLength;
-    int                 preeditLengthAllocated;
+    int                 preeditTextCount;
+    int                 preeditBufferCount;
     int*                preeditBlockSizes;
     int                 preeditBlockCount;
-    int                 preeditBlockCountAllocated;
+    int                 preeditBlockBufferCount;
     int                 preeditFocusedBlockIndex;
     int                 preeditCaretIndex;
 

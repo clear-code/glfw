@@ -337,7 +337,7 @@ void _glfwInputPreedit(_GLFWwindow* window)
     if (window->callbacks.preedit)
     {
         window->callbacks.preedit((GLFWwindow*) window,
-                                  window->preeditLength,
+                                  window->preeditTextCount,
                                   window->preeditText,
                                   window->preeditBlockCount,
                                   window->preeditBlockSizes,

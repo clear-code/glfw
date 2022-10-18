@@ -557,7 +557,7 @@ static void _ximPreeditDoneCallback(XIC xic, XPointer clientData, XPointer callD
 //
 static void _ximPreeditDrawCallback(XIC xic, XPointer clientData, XIMPreeditDrawCallbackStruct *callData)
 {
-    int i, j, textLen, textAllcLen, rstart, rend;
+    int i, j, textLen, textBufferCount, rstart, rend;
     XIMText* text;
     const char* src;
     unsigned int codePoint;
@@ -568,7 +568,7 @@ static void _ximPreeditDrawCallback(XIC xic, XPointer clientData, XIMPreeditDraw
     if (!callData->text)
     {
         // preedit text is empty
-        window->preeditLength = 0;
+        window->preeditTextCount = 0;
         window->preeditBlockCount = 0;
         window->preeditFocusedBlockIndex = 0;
         window->preeditCaretIndex = 0;
@@ -584,27 +584,27 @@ static void _ximPreeditDrawCallback(XIC xic, XPointer clientData, XIMPreeditDraw
             // wchar is not supported
             return;
         }
-        textAllcLen = window->preeditLengthAllocated;
-        while (textAllcLen < textLen + 1)
+        textBufferCount = window->preeditBufferCount;
+        while (textBufferCount < textLen + 1)
         {
-            textAllcLen = (textAllcLen == 0) ? 1 : textAllcLen * 2;
+            textBufferCount = (textBufferCount == 0) ? 1 : textBufferCount * 2;
         }
-        if (textAllcLen != window->preeditLengthAllocated)
+        if (textBufferCount != window->preeditBufferCount)
         {
-            preeditText = _glfw_realloc(window->preeditText, sizeof(unsigned int) * textAllcLen);
+            preeditText = _glfw_realloc(window->preeditText, sizeof(unsigned int) * textBufferCount);
             if (preeditText == NULL)
             {
                 return;
             }
             window->preeditText = preeditText;
-            window->preeditLengthAllocated = textAllcLen;
+            window->preeditBufferCount = textBufferCount;
         }
-        window->preeditLength = textLen;
+        window->preeditTextCount = textLen;
         window->preeditText[textLen] = 0;
-        if (window->preeditBlockCountAllocated == 0)
+        if (window->preeditBlockBufferCount == 0)
         {
             window->preeditBlockSizes = _glfw_calloc(4, sizeof(int));
-            window->preeditBlockCountAllocated = 4;
+            window->preeditBlockBufferCount = 4;
         }
         src = text->string.multi_byte;
         rend = 0;
@@ -3358,7 +3358,7 @@ void _glfwResetPreeditTextX11(_GLFWwindow* window)
     if (_glfw.x11.imStyle == STYLE_OVERTHESPOT)
         return;
 
-    if (window->preeditLength == 0)
+    if (window->preeditTextCount == 0)
         return;
 
     preedit_attr = XVaCreateNestedList(0, XNPreeditState, &preedit_state, NULL);
@@ -3371,7 +3371,7 @@ void _glfwResetPreeditTextX11(_GLFWwindow* window)
     XSetICValues(ic, XNPreeditAttributes, preedit_attr, NULL);
     XFree(preedit_attr);
 
-    window->preeditLength = 0;
+    window->preeditTextCount = 0;
     window->preeditBlockCount = 0;
     window->preeditFocusedBlockIndex = 0;
     window->preeditCaretIndex = 0;
