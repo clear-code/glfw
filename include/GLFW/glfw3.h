@@ -1916,7 +1916,7 @@ typedef void (* GLFWcharmodsfun)(GLFWwindow* window, unsigned int codepoint, int
  *  @param[in] focused_block Focused block index.
  *  @param[in] caret Caret position.
  *
- *  @sa @ref preedit
+ *  @sa @ref ime_support
  *  @sa glfwSetPreeditCallback
  *
  *  @ingroup input
@@ -1935,7 +1935,7 @@ typedef void (* GLFWpreeditfun)(GLFWwindow* window,
  *
  *  @param[in] window The window that received the event.
  *
- *  @sa @ref preedit
+ *  @sa @ref ime_support
  *  @sa glfwSetIMEStatusCallback
  *
  *  @ingroup monitor
@@ -5100,7 +5100,7 @@ GLFWAPI void glfwSetCursor(GLFWwindow* window, GLFWcursor* cursor);
  *  @par Thread Safety
  *  This function may only be called from the main thread.
  *
- *  @sa @ref input_char
+ *  @sa @ref ime_support
  *
  *  @since Added in GLFW 3.X.
  *
@@ -5122,7 +5122,7 @@ GLFWAPI void glfwGetPreeditCursorRectangle(GLFWwindow* window, int* x, int* y, i
  *  @par Thread Safety
  *  This function may only be called from the main thread.
  *
- *  @sa @ref input_char
+ *  @sa @ref ime_support
  *
  *  @since Added in GLFW 3.X.
  *
@@ -5144,7 +5144,7 @@ GLFWAPI void glfwSetPreeditCursorRectangle(GLFWwindow* window, int x, int y, int
  *  @par Thread Safety
  *  This function may only be called from the main thread.
  *
- *  @sa @ref preedit
+ *  @sa @ref ime_support
  *
  *  @since Added in GLFW 3.X.
  *
@@ -5321,7 +5321,7 @@ GLFWAPI GLFWcharmodsfun glfwSetCharModsCallback(GLFWwindow* window, GLFWcharmods
  *  @par Thread Safety
  *  This function may only be called from the main thread.
  *
- *  @sa @ref input_char
+ *  @sa @ref ime_support
  *
  *  @since Added in GLFW 3.X
  *
@@ -5352,7 +5352,7 @@ GLFWAPI GLFWpreeditfun glfwSetPreeditCallback(GLFWwindow* window, GLFWpreeditfun
  *  @par Thread Safety
  *  This function may only be called from the main thread.
  *
- *  @sa @ref input_char
+ *  @sa @ref ime_support
  *
  *  @since Added in GLFW 3.X
  *
