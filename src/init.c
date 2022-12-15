@@ -54,6 +54,7 @@ static _GLFWinitconfig _glfwInitHints =
     GLFW_TRUE,      // hat buttons
     GLFW_ANGLE_PLATFORM_TYPE_NONE, // ANGLE backend
     GLFW_ANY_PLATFORM, // preferred platform
+    GLFW_FALSE, // whether to manage preedit candidate
     NULL,           // vkGetInstanceProcAddr function
     {
         GLFW_TRUE,  // macOS menu bar
@@ -493,6 +494,9 @@ GLFWAPI void glfwInitHint(int hint, int value)
             return;
         case GLFW_PLATFORM:
             _glfwInitHints.platformID = value;
+            return;
+        case GLFW_MANAGE_PREEDIT_CANDIDATE:
+            _glfwInitHints.managePreeditCandidate = value;
             return;
         case GLFW_COCOA_CHDIR_RESOURCES:
             _glfwInitHints.ns.chdir = value;
