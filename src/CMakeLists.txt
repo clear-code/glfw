@@ -113,6 +113,12 @@ if (GLFW_BUILD_WAYLAND)
     wayland_generate(
         "${WAYLAND_PROTOCOLS_BASE}/unstable/idle-inhibit/idle-inhibit-unstable-v1.xml"
         "${GLFW_BINARY_DIR}/src/wayland-idle-inhibit-unstable-v1-client-protocol")
+    wayland_generate(
+        "${WAYLAND_PROTOCOLS_BASE}/unstable/text-input/text-input-unstable-v1.xml"
+        "${GLFW_BINARY_DIR}/src/wayland-text-input-unstable-v1-client-protocol")
+    wayland_generate(
+        "${WAYLAND_PROTOCOLS_BASE}/unstable/text-input/text-input-unstable-v3.xml"
+        "${GLFW_BINARY_DIR}/src/wayland-text-input-unstable-v3-client-protocol")
 endif()
 
 if (WIN32 AND GLFW_BUILD_SHARED_LIBRARY)
