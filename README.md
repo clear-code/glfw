@@ -122,6 +122,21 @@ information on what to include when reporting a bug.
 
 ## Changelog since 3.3.9
 
+ - Added `glfwSetPreeditCallback` function and `GLFWpreeditfun` type for
+   preedit of input method (#2130)
+ - Added `glfwSetIMEStatusCallback` function and `GLFWimestatusfun` type for
+   status of input method (#2130)
+ - Added `glfwSetPreeditCursorRectangle` function to set the preedit cursor
+   area that is used to decide the position of the candidate window of input
+   method (#2130)
+ - Added `glfwGetPreeditCursorRectangle` function to get the preedit cursor
+   area (#2130)
+ - Added `glfwResetPreeditText` function to reset preedit of input method
+   (#2130)
+ - Added `GLFW_IME` input mode for `glfwGetInputMode` and `glfwSetInputMode`
+   (#2130)
+ - Added `GLFW_X11_ONTHESPOT` init hint for using on-the-spot input method
+   style on X11 (#2130)
  - Added `GLFW_PLATFORM` init hint for runtime platform selection (#1958)
  - Added `GLFW_ANY_PLATFORM`, `GLFW_PLATFORM_WIN32`, `GLFW_PLATFORM_COCOA`,
    `GLFW_PLATFORM_WAYLAND`, `GLFW_PLATFORM_X11` and `GLFW_PLATFORM_NULL` symbols to
