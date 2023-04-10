@@ -122,6 +122,13 @@ information on what to include when reporting a bug.
 
 ## Changelog since 3.3.9
 
+ - Added `glfwSetPreeditCandidateCallback` function and
+   `GLFWpreeditcandidatefun` type for preedit candidates (#2130)
+ - Added `glfwGetPreeditCandidate` function to get a preeidt candidate text
+   (#2130)
+ - Added `GLFW_MANAGE_PREEDIT_CANDIDATE` init hint for displaying preedit
+   candidates on the application side (supported only on Windows currently)
+   (#2130)
  - Added `glfwSetPreeditCallback` function and `GLFWpreeditfun` type for
    preedit of input method (#2130)
  - Added `glfwSetIMEStatusCallback` function and `GLFWimestatusfun` type for
