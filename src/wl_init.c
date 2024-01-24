@@ -47,6 +47,8 @@
 #include "relative-pointer-unstable-v1-client-protocol.h"
 #include "pointer-constraints-unstable-v1-client-protocol.h"
 #include "idle-inhibit-unstable-v1-client-protocol.h"
+#include "text-input-unstable-v1-client-protocol.h"
+#include "text-input-unstable-v3-client-protocol.h"
 
 // NOTE: Versions of wayland-scanner prior to 1.17.91 named every global array of
 //       wl_interface pointers 'types', making it impossible to combine several unmodified
@@ -79,6 +81,14 @@
 
 #define types _glfw_idle_inhibit_types
 #include "idle-inhibit-unstable-v1-client-protocol-code.h"
+#undef types
+
+#define types _glfw_text_input_v1_types
+#include "text-input-unstable-v1-client-protocol-code.h"
+#undef types
+
+#define types _glfw_text_input_v3_types
+#include "text-input-unstable-v3-client-protocol-code.h"
 #undef types
 
 static void wmBaseHandlePing(void* userData,
@@ -175,6 +185,20 @@ static void registryHandleGlobal(void* userData,
         _glfw.wl.idleInhibitManager =
             wl_registry_bind(registry, name,
                              &zwp_idle_inhibit_manager_v1_interface,
+                             1);
+    }
+    else if (strcmp(interface, "zwp_text_input_manager_v1") == 0)
+    {
+        _glfw.wl.textInputManagerV1 =
+            wl_registry_bind(registry, name,
+                             &zwp_text_input_manager_v1_interface,
+                             1);
+    }
+    else if (strcmp(interface, "zwp_text_input_manager_v3") == 0)
+    {
+        _glfw.wl.textInputManagerV3 =
+            wl_registry_bind(registry, name,
+                             &zwp_text_input_manager_v3_interface,
                              1);
     }
 }
@@ -933,6 +957,10 @@ void _glfwTerminateWayland(void)
         zwp_pointer_constraints_v1_destroy(_glfw.wl.pointerConstraints);
     if (_glfw.wl.idleInhibitManager)
         zwp_idle_inhibit_manager_v1_destroy(_glfw.wl.idleInhibitManager);
+    if (_glfw.wl.textInputManagerV1)
+        zwp_text_input_manager_v1_destroy(_glfw.wl.textInputManagerV1);
+    if (_glfw.wl.textInputManagerV3)
+        zwp_text_input_manager_v3_destroy(_glfw.wl.textInputManagerV3);
     if (_glfw.wl.registry)
         wl_registry_destroy(_glfw.wl.registry);
     if (_glfw.wl.display)
