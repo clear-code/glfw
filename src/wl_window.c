@@ -2151,8 +2151,8 @@ static void textInputV3Enter(void* data,
                              struct zwp_text_input_v3* textInputV3,
                              struct wl_surface* surface)
 {
-    zwp_text_input_v3_enable(textInputV3);
-    zwp_text_input_v3_commit(textInputV3);
+    _GLFWwindow* window = (_GLFWwindow*) data;
+    _glfwInputIMEStatus(window);
 }
 
 static void textInputV3Reset(_GLFWwindow* window)
@@ -2179,6 +2179,9 @@ static void textInputV3Leave(void* data,
     // the behavior varies depending on implemention. It's cleared by IM on
     // Ubuntu 22.04 but not cleared on Ubuntu 20.04.
     textInputV3Reset(window);
+
+    _glfw.wl.ime.active = GLFW_FALSE;
+    _glfwInputIMEStatus(window);
 }
 
 static void textInputV3PreeditString(void* data,
@@ -2312,7 +2315,7 @@ static void textInputV1Enter(void* data,
                              struct wl_surface* surface)
 {
     _GLFWwindow* window = (_GLFWwindow*) data;
-    activateTextInputV1(window);
+    _glfwInputIMEStatus(window);
 }
 
 static void textInputV1Reset(_GLFWwindow* window)
@@ -2341,6 +2344,9 @@ static void textInputV1Leave(void* data,
     textInputV3CommitString(data, NULL, commitText);
     textInputV1Reset(window);
     deactivateTextInputV1(window);
+
+    _glfw.wl.ime.active = GLFW_FALSE;
+    _glfwInputIMEStatus(window);
 }
 
 static void textInputV1ModifiersMap(void* data,
@@ -3619,18 +3625,42 @@ const char* _glfwGetClipboardStringWayland(void)
 void _glfwUpdatePreeditCursorRectangleWayland(_GLFWwindow* window)
 {
     _GLFWpreedit* preedit = &window->preedit;
-    int x = preedit->cursorPosX;
-    int y = preedit->cursorPosY;
-    int w = preedit->cursorWidth;
-    int h = preedit->cursorHeight;
+    GLFWbool change = GLFW_FALSE;
+    if (_glfw.wl.ime.cursor_x != preedit->cursorPosX)
+    {
+        _glfw.wl.ime.cursor_x = preedit->cursorPosX;
+        change = GLFW_TRUE;
+    }
+    if (_glfw.wl.ime.cursor_y != preedit->cursorPosY)
+    {
+        _glfw.wl.ime.cursor_y = preedit->cursorPosY;
+        change = GLFW_TRUE;
+    }
+    if (_glfw.wl.ime.cursor_w != preedit->cursorWidth)
+    {
+        _glfw.wl.ime.cursor_w = preedit->cursorWidth;
+        change = GLFW_TRUE;
+    }
+    if (_glfw.wl.ime.cursor_h != preedit->cursorHeight)
+    {
+        _glfw.wl.ime.cursor_h = preedit->cursorHeight;
+        change = GLFW_TRUE;
+    }
+
+    if (!change)
+        return;
 
     if (window->wl.textInputV3)
     {
-        zwp_text_input_v3_set_cursor_rectangle(window->wl.textInputV3, x, y, w, h);
+        zwp_text_input_v3_set_cursor_rectangle(window->wl.textInputV3,
+            preedit->cursorPosX, preedit->cursorPosY,
+            preedit->cursorWidth, preedit->cursorHeight);
         zwp_text_input_v3_commit(window->wl.textInputV3);
     }
     else if (window->wl.textInputV1)
-        zwp_text_input_v1_set_cursor_rectangle(window->wl.textInputV1, x, y, w, h);
+        zwp_text_input_v1_set_cursor_rectangle(window->wl.textInputV1,
+            preedit->cursorPosX, preedit->cursorPosY,
+            preedit->cursorWidth, preedit->cursorHeight);
 }
 
 void _glfwResetPreeditTextWayland(_GLFWwindow* window)
@@ -3639,11 +3669,33 @@ void _glfwResetPreeditTextWayland(_GLFWwindow* window)
 
 void _glfwSetIMEStatusWayland(_GLFWwindow* window, int active)
 {
+    _glfw.wl.ime.active = active;
+    if (active) {
+        if (window->wl.textInputV3)
+        {
+            zwp_text_input_v3_enable(window->wl.textInputV3);
+            zwp_text_input_v3_commit(window->wl.textInputV3);
+        }
+        else if (window->wl.textInputV1)
+        {
+            activateTextInputV1(window);
+        }
+    } else {
+        if (window->wl.textInputV3)
+        {
+            textInputV3Leave(window, window->wl.textInputV3, NULL);
+        }
+        else if (window->wl.textInputV1)
+        {
+            textInputV1Leave(window, window->wl.textInputV1);
+        }
+    }
+    _glfwInputIMEStatus(window);
 }
 
 int _glfwGetIMEStatusWayland(_GLFWwindow* window)
 {
-    return GLFW_FALSE;
+    return _glfw.wl.ime.active;
 }
 
 EGLenum _glfwGetEGLPlatformWayland(EGLint** attribs)
