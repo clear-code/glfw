@@ -3641,6 +3641,12 @@ void _glfwResetPreeditTextWayland(_GLFWwindow* window)
 
 void _glfwSetIMEStatusWayland(_GLFWwindow* window, int active)
 {
+    if (window->wl.textInputV3)
+    {
+        active ? zwp_text_input_v3_enable(window->wl.textInputV3) : zwp_text_input_v3_disable(window->wl.textInputV3);
+    }
+    else if (window->wl.textInputV1)
+        active ? zwp_text_input_v1_activate(window->wl.textInputV1, _glfw.wl.seat, window->wl.surface) : zwp_text_input_v1_deactivate(window->wl.textInputV1, _glfw.wl.seat);
 }
 
 int _glfwGetIMEStatusWayland(_GLFWwindow* window)
