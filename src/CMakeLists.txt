@@ -46,7 +46,11 @@ endif()
 
 if (GLFW_BUILD_X11)
     target_compile_definitions(glfw PRIVATE _GLFW_X11)
-    target_sources(glfw PRIVATE x11_platform.h x11_init.c
+    target_compile_definitions(glfw PRIVATE
+                               "_GLFW_X11_IME_MODULE_DIR=\"${GLFW_IME_MODULE_INSTALL_FULL_DIR}\""
+                               "_GLFW_X11_IME_MODULE_SUFFIX=\"${CMAKE_SHARED_MODULE_SUFFIX}\"")
+    target_sources(glfw PRIVATE x11_platform.h x11_ime_module.h
+                                x11_ime_module.c x11_init.c
                                 x11_monitor.c x11_window.c xkb_unicode.c
                                 glx_context.c)
 endif()
@@ -213,6 +217,36 @@ if (GLFW_BUILD_X11)
         message(FATAL_ERROR "X Shape headers not found; install libxext development package")
     endif()
     target_include_directories(glfw PRIVATE "${X11_Xshape_INCLUDE_PATH}")
+
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        include(FindPkgConfig)
+        pkg_check_modules(DBUS1 dbus-1)
+        if (GLFW_INSTALL_IME_MODULES AND NOT DBUS1_FOUND)
+            message(FATAL_ERROR "D-Bus development package is required for installing X11 IME modules")
+        endif()
+        if (DBUS1_FOUND)
+            add_library(glfw-ibus MODULE x11_ibus_module.c x11_ime_module.h)
+            set_target_properties(glfw-ibus PROPERTIES
+                                  PREFIX ""
+                                  C_STANDARD 99
+                                  C_EXTENSIONS OFF
+                                  FOLDER "GLFW3")
+            target_include_directories(glfw-ibus PRIVATE
+                                       "${GLFW_SOURCE_DIR}/src"
+                                       "${GLFW_SOURCE_DIR}/include"
+                                       ${DBUS1_INCLUDE_DIRS})
+            target_link_libraries(glfw-ibus PRIVATE Threads::Threads ${DBUS1_LIBRARIES})
+            target_compile_options(glfw-ibus PRIVATE ${DBUS1_CFLAGS_OTHER})
+            target_link_directories(glfw-ibus PRIVATE ${DBUS1_LIBRARY_DIRS})
+
+            if (GLFW_INSTALL_IME_MODULES)
+                install(TARGETS glfw-ibus
+                        LIBRARY DESTINATION "${GLFW_IME_MODULE_INSTALL_DIR}")
+            endif()
+        else()
+            message(STATUS "D-Bus development package not found; skipping glfw-ibus prototype module")
+        endif()
+    endif()
 endif()
 
 if (UNIX AND NOT APPLE)
@@ -345,4 +379,3 @@ if (GLFW_INSTALL)
             ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
             LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()
-

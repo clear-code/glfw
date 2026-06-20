@@ -1553,7 +1553,9 @@ int _glfwInitX11(void)
     _glfw.x11.helperWindowHandle = createHelperWindow();
     _glfw.x11.hiddenCursorHandle = createHiddenCursor();
 
-    if (XSupportsLocale() && _glfw.x11.xlib.utf8)
+    _glfwLoadIMEModuleX11();
+
+    if (!_glfwHasIMEModuleX11() && XSupportsLocale() && _glfw.x11.xlib.utf8)
     {
         XSetLocaleModifiers("");
 
@@ -1591,16 +1593,21 @@ void _glfwTerminateX11(void)
     _glfw_free(_glfw.x11.primarySelectionString);
     _glfw_free(_glfw.x11.clipboardString);
 
-    XUnregisterIMInstantiateCallback(_glfw.x11.display,
-                                     NULL, NULL, NULL,
-                                     inputMethodInstantiateCallback,
-                                     NULL);
+    if (!_glfwHasIMEModuleX11())
+    {
+        XUnregisterIMInstantiateCallback(_glfw.x11.display,
+                                         NULL, NULL, NULL,
+                                         inputMethodInstantiateCallback,
+                                         NULL);
+    }
 
     if (_glfw.x11.im)
     {
         XCloseIM(_glfw.x11.im);
         _glfw.x11.im = NULL;
     }
+
+    _glfwUnloadIMEModuleX11();
 
     if (_glfw.x11.display)
     {
