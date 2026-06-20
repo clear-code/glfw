@@ -1385,7 +1385,11 @@ static void processEvent(XEvent *event)
         keycode = event->xkey.keycode;
 
     if (!imeModuleActive)
+    {
         filtered = XFilterEvent(event, None);
+        if (filtered)
+            return;
+    }
 
     if (_glfw.x11.randr.available)
     {
@@ -1479,19 +1483,21 @@ static void processEvent(XEvent *event)
             const int mods = translateState(event->xkey.state);
             const int plain = !(mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT));
             const KeySym imeKeysym = getIMEKeySym(&event->xkey, keycode);
+            GLFWbool moduleHandled = GLFW_FALSE;
 
-            if (_glfwProcessKeyIMEModuleX11(window, keycode, (unsigned int) imeKeysym,
-                                            event->xkey.state, GLFW_PRESS, mods,
-                                            event->xkey.time))
+            if (imeModuleActive)
             {
-                if (keycode)
-                    _glfwInputKey(window, key, keycode, GLFW_PRESS, mods);
-
-                return;
+                moduleHandled =
+                    _glfwProcessKeyIMEModuleX11(window, keycode, (unsigned int) imeKeysym,
+                                                event->xkey.state, GLFW_PRESS, mods,
+                                                event->xkey.time);
             }
 
             if (imeModuleActive && window->x11.imeLogNextKey)
                 window->x11.imeLogNextKey = GLFW_FALSE;
+
+            if (moduleHandled)
+                return;
 
             if (window->x11.ic)
             {
