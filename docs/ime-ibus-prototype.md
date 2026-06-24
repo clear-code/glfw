@@ -18,6 +18,8 @@ The prototype is meant to answer these questions:
 - Do IBus replies or text signals arrive late enough to cause duplicated text?
 - Is candidate window positioning practical with the existing cursor rectangle
   API?
+- Can the existing GLFW preedit model represent useful IBus preedit state,
+  including caret position and focused text blocks?
 
 ## Architecture
 
@@ -130,6 +132,8 @@ The module uses these IBus input context methods and signals:
 - `FocusOut`
 - `SetCursorLocation`
 - `Reset`
+- `Enabled`
+- `Disabled`
 
 The module currently uses `SetCursorLocation`, not
 `SetCursorLocationRelative`.
@@ -188,6 +192,11 @@ GLFW preedit text, block sizes, focused block and caret index.  The block
 mapping is intentionally conservative because IBus engines differ in which
 attributes they use to mark the active segment.
 
+This has been tested with normal IBus preedit flow and now behaves well enough
+for practical application-side preedit drawing in the prototype.  It is still a
+mapping from IBus attributes to GLFW's simpler block model, not a lossless
+exposure of every IBus text attribute.
+
 ### Commit Support
 
 Committed text from `CommitText` is queued by the worker and emitted through
@@ -214,6 +223,11 @@ by GLFW state and the next X11 `FocusIn` event activates the module.
 `glfwSetTextInputFocus(window, GLFW_FALSE)` maps to IBus `Reset` followed by
 `FocusOut`.  This disables text input routing for the window while keeping the
 window focus state separate from the text input focus abstraction.
+
+The X11 key path also checks GLFW's text input focus state before sending
+`ProcessKeyEvent` to the module.  This is required because IBus `FocusOut` is
+asynchronous and does not by itself prevent GLFW from continuing to route key
+events through IBus.
 
 ### IME Enable And Disable Behavior
 
@@ -261,6 +275,7 @@ Each queued and drained IME event logs:
 - attributed request id
 - whether the attributed request had timed out
 - timestamp
+- caret index, block count and focused block for preedit events
 - text, when present
 
 IBus signals do not include the originating `ProcessKeyEvent` request.  The
@@ -297,11 +312,15 @@ Late `CommitText` events are queued and logged with the best available request
 attribution.  Because IBus does not identify the originating request, this
 attribution is not guaranteed to be exact.
 
-### Candidate And Surrounding Text Completeness
+### Candidate, Attribute And Surrounding Text Completeness
 
-The prototype does not implement lookup-table/candidate-list parsing,
-surrounding text, or full IBus preedit attributes.  These would be needed for a
-more complete backend.
+The prototype does not implement lookup-table/candidate-list parsing or
+surrounding text.
+
+IBus preedit attributes are mapped to GLFW block sizes and a focused block, but
+the mapping is intentionally lossy.  It is enough for useful preedit display,
+but it does not expose underline style, foreground/background color or every
+IBus text attribute to applications.
 
 ### Restart And Recovery
 
@@ -317,10 +336,17 @@ The prototype demonstrates that the architecture is technically feasible:
 - worker-thread communication can be kept behind explicit queues
 - IBus/Fcitx5 preedit and commit paths can be integrated with the existing IME
   architecture
+- IBus preedit text, caret position and focused block information can be mapped
+  to GLFW's existing preedit callback model
 - candidate window positioning can be handled without changing the public IME API
+- explicit text input focus can be made to stop routing X11 keys through IBus
 
-However, this is still a research prototype.  It is not currently recommended
-for upstream submission.
+The current prototype is no longer only a proof of concept for drawing basic
+preedit text.  It is close to usable for application testing on X11 with IBus or
+Fcitx5's IBus compatibility layer.
+
+However, this is still an experimental backend.  It is not currently recommended
+for upstream submission as-is.
 
 The remaining decision point is semantic reliability: late replies and late text
 signals after key-processing timeouts need more real-world measurement before an
