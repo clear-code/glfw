@@ -12,6 +12,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_GLFW_EMBED_IBUS_MODULE)
+extern int glfwGetX11IMEBackend(int,const GLFWx11IMEHostAPI*,GLFWx11IMEBackendAPI*);
+#endif
+
 #if !defined(_GLFW_X11_IME_MODULE_DIR)
 #define _GLFW_X11_IME_MODULE_DIR ""
 #endif
@@ -289,39 +293,52 @@ GLFWbool _glfwLoadIMEModuleX11(void)
     PFN_glfwGetX11IMEBackend getBackend;
     char* loadedPath = NULL;
 
-    if (!path || !*path)
+#if defined(_GLFW_EMBED_IBUS_MODULE)
+    getBackend = glfwGetX11IMEBackend;
+#else
+    getBackend = NULL;
+#endif
+
+    if ((!path || !*path) && !getBackend)
         return GLFW_FALSE;
 
     _glfw.x11.imeModule.debug = debug && *debug && strcmp(debug, "0") != 0;
 
-    _glfw.x11.imeModule.handle = loadIMEModuleName(path, &loadedPath);
-    if (!_glfw.x11.imeModule.handle)
+    if (path && *path)
     {
-        _glfwInputError(GLFW_PLATFORM_ERROR,
-                        "X11: Failed to load IME module %s", path);
-        return GLFW_FALSE;
-    }
+        _glfw.x11.imeModule.handle = loadIMEModuleName(path, &loadedPath);
+        if (!_glfw.x11.imeModule.handle)
+        {
+            _glfwInputError(GLFW_PLATFORM_ERROR,
+                            "X11: Failed to load IME module %s", path);
+            return GLFW_FALSE;
+        }
 
-    getBackend = (PFN_glfwGetX11IMEBackend)
-        _glfwPlatformGetModuleSymbol(_glfw.x11.imeModule.handle,
-                                     "glfwGetX11IMEBackend");
-    if (!getBackend)
-    {
-        _glfwInputError(GLFW_PLATFORM_ERROR,
-                        "X11: IME module does not export glfwGetX11IMEBackend");
-        _glfwPlatformFreeModule(_glfw.x11.imeModule.handle);
+        getBackend = (PFN_glfwGetX11IMEBackend)
+            _glfwPlatformGetModuleSymbol(_glfw.x11.imeModule.handle,
+                                         "glfwGetX11IMEBackend");
+        if (!getBackend)
+        {
+            _glfwInputError(GLFW_PLATFORM_ERROR,
+                            "X11: IME module does not export glfwGetX11IMEBackend");
+            _glfwPlatformFreeModule(_glfw.x11.imeModule.handle);
+            _glfw_free(loadedPath);
+            memset(&_glfw.x11.imeModule, 0, sizeof(_glfw.x11.imeModule));
+            return GLFW_FALSE;
+        }
+
+        if (_glfw.x11.imeModule.debug)
+        {
+            fprintf(stderr, "GLFW IME: loaded external module %s\n",
+                    loadedPath ? loadedPath : path);
+        }
+
         _glfw_free(loadedPath);
-        memset(&_glfw.x11.imeModule, 0, sizeof(_glfw.x11.imeModule));
-        return GLFW_FALSE;
     }
-
-    if (_glfw.x11.imeModule.debug)
-    {
-        fprintf(stderr, "GLFW IME: loaded external module %s\n",
-                loadedPath ? loadedPath : path);
-    }
-
-    _glfw_free(loadedPath);
+#if defined(_GLFW_EMBED_IBUS_MODULE)
+    else if (_glfw.x11.imeModule.debug)
+        fprintf(stderr, "GLFW IME: using embedded IBus module\n");
+#endif
 
     memset(&host, 0, sizeof(host));
     host.commit_text = hostCommitText;
@@ -339,7 +356,8 @@ GLFWbool _glfwLoadIMEModuleX11(void)
         _glfwInputError(GLFW_PLATFORM_ERROR,
                         "X11: IME module rejected ABI version %i",
                         GLFW_X11_IME_MODULE_ABI_VERSION);
-        _glfwPlatformFreeModule(_glfw.x11.imeModule.handle);
+        if (_glfw.x11.imeModule.handle)
+            _glfwPlatformFreeModule(_glfw.x11.imeModule.handle);
         memset(&_glfw.x11.imeModule, 0, sizeof(_glfw.x11.imeModule));
         return GLFW_FALSE;
     }
@@ -350,7 +368,8 @@ GLFWbool _glfwLoadIMEModuleX11(void)
     {
         _glfwInputError(GLFW_PLATFORM_ERROR,
                         "X11: IME module failed to create backend");
-        _glfwPlatformFreeModule(_glfw.x11.imeModule.handle);
+        if (_glfw.x11.imeModule.handle)
+            _glfwPlatformFreeModule(_glfw.x11.imeModule.handle);
         memset(&_glfw.x11.imeModule, 0, sizeof(_glfw.x11.imeModule));
         return GLFW_FALSE;
     }

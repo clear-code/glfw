@@ -36,6 +36,11 @@ For example:
 GLFW_IM_MODULE=/path/to/glfw-ibus.so ./application
 ```
 
+For experimentation with prebuilt GLFW binaries, the same IBus backend can also
+be embedded into GLFW with the `GLFW_EMBED_IBUS_MODULE` CMake option.  In that
+mode, GLFW uses the embedded backend when `GLFW_IM_MODULE` is not set, while
+still allowing `GLFW_IM_MODULE` to override it.
+
 The standalone IBus IME module is not installed by default.  Configure with
 `-DGLFW_INSTALL_IME_MODULES=ON` to install `glfw-ibus.so`.  The default install
 location is `${CMAKE_INSTALL_LIBDIR}/glfw` relative to the install prefix,
@@ -56,6 +61,8 @@ When a module is active, the X11 backend:
 
 - skips XIM setup for that run
 - forwards X11 key events to the module
+- passes the X event keysym, including modifier-translated printable keysyms,
+  to IBus `ProcessKeyEvent`
 - forwards focus changes to the module
 - translates preedit cursor rectangles from client-area coordinates to X11 root
   coordinates
@@ -83,6 +90,11 @@ does not add D-Bus file descriptors to the GLFW event loop.
 
 The prototype module is built as `glfw-ibus.so` when the `dbus-1` development
 package is available.
+
+If `GLFW_EMBED_IBUS_MODULE` is enabled, the same module source is also compiled
+into the GLFW library and `dbus-1` becomes a GLFW build dependency.  This is
+only an experiment to remove setup friction for local or redistributed test
+builds.
 
 The module owns:
 
@@ -228,6 +240,24 @@ The X11 key path also checks GLFW's text input focus state before sending
 `ProcessKeyEvent` to the module.  This is required because IBus `FocusOut` is
 asynchronous and does not by itself prevent GLFW from continuing to route key
 events through IBus.
+
+For application compatibility experiments, GLFW can infer text input focus from
+legacy IME and cursor input state.  Set `GLFW_INFER_TEXT_INPUT_FOCUS` to a
+non-zero value, or build GLFW with `GLFW_INFER_TEXT_INPUT_FOCUS` enabled.  In
+this mode, `glfwSetInputMode(window, GLFW_IME, value)` calls the text input focus
+path instead of the native platform IME-status path.
+
+When this compatibility mode is active, GLFW also treats cursor mode changes as
+text input focus hints.  The requested text input focus state is kept separately
+from the effective platform focus, so cursor-disabled gameplay can suppress IME
+routing while cursor-normal text entry can re-enable it.  This helps existing
+applications that switch between gameplay and text entry with cursor mode only.
+
+`glfwGetInputMode(window, GLFW_IME)` still returns the native platform IME
+status until the remapping path has initialized text input focus state for the
+window.  After that, it returns the application-requested text input focus
+state, not the cursor-mode-masked effective platform focus.  This preserves the
+old query behavior for applications that never use the remapping path.
 
 ### IME Enable And Disable Behavior
 

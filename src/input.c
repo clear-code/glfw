@@ -593,6 +593,31 @@ void _glfwCenterCursorInContentArea(_GLFWwindow* window)
     _glfw.platform.setCursorPos(window, width / 2.0, height / 2.0);
 }
 
+GLFWbool _glfwInferTextInputFocus(void)
+{
+    const char* value = getenv("GLFW_INFER_TEXT_INPUT_FOCUS");
+
+    if (value && *value)
+        return strcmp(value, "0") != 0;
+
+#if defined(_GLFW_INFER_TEXT_INPUT_FOCUS)
+    return GLFW_TRUE;
+#else
+    return GLFW_FALSE;
+#endif
+}
+
+static GLFWbool getEffectiveTextInputFocus(_GLFWwindow* window)
+{
+    if (_glfwInferTextInputFocus())
+    {
+        return window->textInputFocusRequested &&
+               window->cursorMode == GLFW_CURSOR_NORMAL;
+    }
+
+    return window->textInputFocusRequested;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //////                        GLFW public API                       //////
@@ -620,6 +645,12 @@ GLFWAPI int glfwGetInputMode(GLFWwindow* handle, int mode)
         case GLFW_UNLIMITED_MOUSE_BUTTONS:
             return window->disableMouseButtonLimit;
         case GLFW_IME:
+            if (_glfwInferTextInputFocus() &&
+                window->textInputFocusInitialized)
+            {
+                return window->textInputFocusRequested;
+            }
+
             return _glfw.platform.getIMEStatus(window);
     }
 
@@ -658,6 +689,23 @@ GLFWAPI void glfwSetInputMode(GLFWwindow* handle, int mode, int value)
                                         &window->virtualCursorPosX,
                                         &window->virtualCursorPosY);
             _glfw.platform.setCursorMode(window, value);
+            if (_glfwInferTextInputFocus())
+            {
+                if (!window->textInputFocusInitialized)
+                {
+                    window->textInputFocusInitialized = GLFW_TRUE;
+                    window->textInputFocusRequested = GLFW_TRUE;
+                    window->textInputFocus = GLFW_TRUE;
+                }
+
+                const GLFWbool focused = getEffectiveTextInputFocus(window);
+
+                if (window->textInputFocus != focused)
+                {
+                    window->textInputFocus = focused;
+                    _glfw.platform.setTextInputFocus(window, focused);
+                }
+            }
             return;
         }
 
@@ -737,6 +785,16 @@ GLFWAPI void glfwSetInputMode(GLFWwindow* handle, int mode, int value)
 
         case GLFW_IME:
         {
+            if (_glfwInferTextInputFocus())
+            {
+                value = value ? GLFW_TRUE : GLFW_FALSE;
+                window->textInputFocusInitialized = GLFW_TRUE;
+                window->textInputFocusRequested = value;
+                window->textInputFocus = getEffectiveTextInputFocus(window);
+                _glfw.platform.setTextInputFocus(window, window->textInputFocus);
+                return;
+            }
+
             _glfw.platform.setIMEStatus(window, value ? GLFW_TRUE : GLFW_FALSE);
             return;
         }
@@ -1049,8 +1107,9 @@ GLFWAPI void glfwSetTextInputFocus(GLFWwindow* handle, int focused)
 
     focused = focused ? GLFW_TRUE : GLFW_FALSE;
     window->textInputFocusInitialized = GLFW_TRUE;
-    window->textInputFocus = focused;
-    _glfw.platform.setTextInputFocus(window, focused);
+    window->textInputFocusRequested = focused;
+    window->textInputFocus = getEffectiveTextInputFocus(window);
+    _glfw.platform.setTextInputFocus(window, window->textInputFocus);
 }
 
 GLFWAPI unsigned int* glfwGetPreeditCandidate(GLFWwindow* handle, int index, int* textCount)
