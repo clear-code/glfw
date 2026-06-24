@@ -1483,9 +1483,11 @@ static void processEvent(XEvent *event)
             const int mods = translateState(event->xkey.state);
             const int plain = !(mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT));
             const KeySym imeKeysym = getIMEKeySym(&event->xkey, keycode);
+            const GLFWbool textInputFocused =
+                !window->textInputFocusInitialized || window->textInputFocus;
             GLFWbool moduleHandled = GLFW_FALSE;
 
-            if (imeModuleActive)
+            if (imeModuleActive && textInputFocused)
             {
                 moduleHandled =
                     _glfwProcessKeyIMEModuleX11(window, keycode, (unsigned int) imeKeysym,
@@ -1573,6 +1575,8 @@ static void processEvent(XEvent *event)
             const int key = translateKey(keycode);
             const int mods = translateState(event->xkey.state);
             const KeySym imeKeysym = getIMEKeySym(&event->xkey, keycode);
+            const GLFWbool textInputFocused =
+                !window->textInputFocusInitialized || window->textInputFocus;
 
             if (!_glfw.x11.xkb.detectable)
             {
@@ -1606,7 +1610,8 @@ static void processEvent(XEvent *event)
                 }
             }
 
-            if (_glfwProcessKeyIMEModuleX11(window, keycode, (unsigned int) imeKeysym,
+            if (imeModuleActive && textInputFocused &&
+                _glfwProcessKeyIMEModuleX11(window, keycode, (unsigned int) imeKeysym,
                                             event->xkey.state, GLFW_RELEASE, mods,
                                             event->xkey.time))
             {
@@ -3527,6 +3532,22 @@ void _glfwSetIMEStatusX11(_GLFWwindow* window, int active)
 void _glfwSetTextInputFocusX11(_GLFWwindow* window, GLFWbool focused)
 {
     XIC ic = window->x11.ic;
+
+    if (_glfwHasIMEModuleX11())
+    {
+        if (focused)
+        {
+            if (_glfwWindowFocusedX11(window))
+                _glfwFocusInIMEModuleX11(window);
+        }
+        else
+        {
+            _glfwResetPreeditTextX11(window);
+            _glfwFocusOutIMEModuleX11(window);
+        }
+
+        return;
+    }
 
     if (!ic)
         return;
