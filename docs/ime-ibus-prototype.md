@@ -205,6 +205,16 @@ The bridge tracks whether a valid cursor rectangle has been translated.  It does
 not send `SetCursorLocation` until a valid rectangle exists.  It resends the last
 valid rectangle on focus and before key processing.
 
+### Text Input Focus
+
+`glfwSetTextInputFocus(window, GLFW_TRUE)` maps to IBus `FocusIn` when the X11
+window is focused.  If the X11 window is not focused, the request is reflected
+by GLFW state and the next X11 `FocusIn` event activates the module.
+
+`glfwSetTextInputFocus(window, GLFW_FALSE)` maps to IBus `Reset` followed by
+`FocusOut`.  This disables text input routing for the window while keeping the
+window focus state separate from the text input focus abstraction.
+
 ### IME Enable And Disable Behavior
 
 The prototype has minimal IME status support.
