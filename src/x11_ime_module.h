@@ -8,15 +8,6 @@
 #ifndef _glfw3_x11_ime_module_h_
 #define _glfw3_x11_ime_module_h_
 
-/*
- * The experimental IME module ABI currently references _GLFWwindow
- * directly, so we need the internal declaration here.
- *
- * A future public/stable module ABI should avoid exposing internal
- * GLFW types and pass the required state explicitly instead.
- */
-#include "internal.h"
-
 #define GLFW_X11_IME_MODULE_ABI_VERSION 2
 
 typedef struct GLFWx11IMEBackend GLFWx11IMEBackend;
@@ -77,6 +68,15 @@ typedef struct GLFWx11IMEBackendAPI
 } GLFWx11IMEBackendAPI;
 
 typedef int (* PFN_glfwGetX11IMEBackend)(int,const GLFWx11IMEHostAPI*,GLFWx11IMEBackendAPI*);
+
+/*
+ * The experimental IME module ABI currently references _GLFWwindow in GLFW's
+ * internal X11 helpers, so we need the internal declaration here.
+ *
+ * A future public/stable module ABI should avoid exposing internal GLFW types
+ * and pass the required state explicitly instead.
+ */
+#include "internal.h"
 
 int _glfwLoadIMEModuleX11(void);
 void _glfwUnloadIMEModuleX11(void);

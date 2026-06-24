@@ -144,6 +144,10 @@ target_include_directories(glfw PRIVATE
                            "${GLFW_BINARY_DIR}/src")
 target_link_libraries(glfw PRIVATE Threads::Threads)
 
+if (GLFW_INFER_TEXT_INPUT_FOCUS)
+    target_compile_definitions(glfw PRIVATE _GLFW_INFER_TEXT_INPUT_FOCUS)
+endif()
+
 if (GLFW_BUILD_WIN32)
     list(APPEND glfw_PKG_LIBS "-lgdi32")
 endif()
@@ -221,10 +225,22 @@ if (GLFW_BUILD_X11)
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         include(FindPkgConfig)
         pkg_check_modules(DBUS1 dbus-1)
+        if (GLFW_EMBED_IBUS_MODULE AND NOT DBUS1_FOUND)
+            message(FATAL_ERROR "D-Bus development package is required for embedded glfw-ibus")
+        endif()
         if (GLFW_INSTALL_IME_MODULES AND NOT DBUS1_FOUND)
             message(FATAL_ERROR "D-Bus development package is required for installing X11 IME modules")
         endif()
         if (DBUS1_FOUND)
+            if (GLFW_EMBED_IBUS_MODULE)
+                target_sources(glfw PRIVATE x11_ibus_module.c)
+                target_compile_definitions(glfw PRIVATE _GLFW_EMBED_IBUS_MODULE)
+                target_include_directories(glfw PRIVATE ${DBUS1_INCLUDE_DIRS})
+                target_link_libraries(glfw PRIVATE ${DBUS1_LIBRARIES})
+                target_compile_options(glfw PRIVATE ${DBUS1_CFLAGS_OTHER})
+                target_link_directories(glfw PRIVATE ${DBUS1_LIBRARY_DIRS})
+            endif()
+
             add_library(glfw-ibus MODULE x11_ibus_module.c x11_ime_module.h)
             set_target_properties(glfw-ibus PROPERTIES
                                   PREFIX ""
