@@ -7,6 +7,7 @@
 #include "x11_ime_module.h"
 
 #include <dbus/dbus.h>
+#include <dirent.h>
 #include <pthread.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -784,16 +785,83 @@ static DBusHandlerResult dbus_filter(DBusConnection* connection,
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
+static int read_ibus_address_file(const char* path, char* buffer, size_t size)
+{
+    FILE* file = fopen(path, "r");
+    if (!file)
+        return GLFW_FALSE;
+
+    while (fgets(buffer, size, file))
+    {
+        if (strncmp(buffer, "IBUS_ADDRESS=", 13) == 0)
+        {
+            char* value = buffer + 13;
+            char* newline = strchr(value, '\n');
+            if (newline)
+                *newline = '\0';
+            memmove(buffer, value, strlen(value) + 1);
+            fclose(file);
+            return GLFW_TRUE;
+        }
+    }
+
+    fclose(file);
+    return GLFW_FALSE;
+}
+
+static int read_ibus_address_from_bus_dir(const char* directory,
+                                          const char* machine_id,
+                                          char* buffer,
+                                          size_t size)
+{
+    DIR* dir;
+    struct dirent* entry;
+    const size_t machine_id_length = strlen(machine_id);
+
+    dir = opendir(directory);
+    if (!dir)
+        return GLFW_FALSE;
+
+    while ((entry = readdir(dir)))
+    {
+        char* path;
+        size_t path_size;
+
+        if (strncmp(entry->d_name, machine_id, machine_id_length) != 0 ||
+            entry->d_name[machine_id_length] != '-')
+        {
+            continue;
+        }
+
+        path_size = strlen(directory) + 1 + strlen(entry->d_name) + 1;
+        path = malloc(path_size);
+        if (!path)
+            continue;
+
+        snprintf(path, path_size, "%s/%s", directory, entry->d_name);
+        if (read_ibus_address_file(path, buffer, size))
+        {
+            free(path);
+            closedir(dir);
+            return GLFW_TRUE;
+        }
+
+        free(path);
+    }
+
+    closedir(dir);
+    return GLFW_FALSE;
+}
+
 static int read_ibus_address(char* buffer, size_t size)
 {
     const char* address = getenv("IBUS_ADDRESS");
-    char path[4096];
+    char bus_dir[4096];
     char display[128];
     const char* config;
     const char* home;
     char* machine_id;
     DBusError error;
-    FILE* file;
 
     if (address && *address)
     {
@@ -826,36 +894,45 @@ static int read_ibus_address(char* buffer, size_t size)
     }
 
     if (config && *config)
-        snprintf(path, sizeof(path), "%s/ibus/bus/%s-%s-%s", config, machine_id, host, number);
+        snprintf(bus_dir, sizeof(bus_dir), "%s/ibus/bus", config);
     else if (home && *home)
-        snprintf(path, sizeof(path), "%s/.config/ibus/bus/%s-%s-%s", home, machine_id, host, number);
+        snprintf(bus_dir, sizeof(bus_dir), "%s/.config/ibus/bus", home);
     else
     {
         dbus_free(machine_id);
         return GLFW_FALSE;
     }
 
-    dbus_free(machine_id);
-
-    file = fopen(path, "r");
-    if (!file)
-        return GLFW_FALSE;
-
-    while (fgets(buffer, size, file))
     {
-        if (strncmp(buffer, "IBUS_ADDRESS=", 13) == 0)
+        char* path;
+        size_t path_size = strlen(bus_dir) + 1 + strlen(machine_id) + 1 +
+                           strlen(host) + 1 + strlen(number) + 1;
+
+        path = malloc(path_size);
+        if (!path)
         {
-            char* value = buffer + 13;
-            char* newline = strchr(value, '\n');
-            if (newline)
-                *newline = '\0';
-            memmove(buffer, value, strlen(value) + 1);
-            fclose(file);
+            dbus_free(machine_id);
+            return GLFW_FALSE;
+        }
+
+        snprintf(path, path_size, "%s/%s-%s-%s", bus_dir, machine_id, host, number);
+        if (read_ibus_address_file(path, buffer, size))
+        {
+            free(path);
+            dbus_free(machine_id);
             return GLFW_TRUE;
         }
+
+        free(path);
     }
 
-    fclose(file);
+    if (read_ibus_address_from_bus_dir(bus_dir, machine_id, buffer, size))
+    {
+        dbus_free(machine_id);
+        return GLFW_TRUE;
+    }
+
+    dbus_free(machine_id);
     return GLFW_FALSE;
 }
 
@@ -946,7 +1023,8 @@ static void process_key_command(GLFWx11IMEBackend* backend, Command* command)
     DBusMessage* reply;
     dbus_bool_t handled = FALSE;
     dbus_uint32_t keyval = request->event.keysym;
-    dbus_uint32_t keycode = request->event.keycode;
+    dbus_uint32_t x11_keycode = request->event.keycode;
+    dbus_uint32_t keycode = x11_keycode >= 8 ? x11_keycode - 8 : x11_keycode;
     dbus_uint32_t state = ibus_state_from_glfw(request->event.mods,
                                                request->event.action);
 
@@ -957,9 +1035,9 @@ static void process_key_command(GLFWx11IMEBackend* backend, Command* command)
     pthread_mutex_unlock(&backend->mutex);
 
     log_line(backend,
-             "request start id=%lu key_serial=%lu timestamp=%.6f keyval=0x%x keycode=%u state=0x%x",
+             "request start id=%lu key_serial=%lu timestamp=%.6f keyval=0x%x x11_keycode=%u ibus_keycode=%u state=0x%x",
              request->id, request->event.time, request->queued_at,
-             keyval, keycode, state);
+             keyval, x11_keycode, keycode, state);
 
     if (request->event.cursor_rect_valid)
     {
