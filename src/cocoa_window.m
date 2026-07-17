@@ -38,6 +38,35 @@
 //       having been (according to documentation) added in Mac OS X 10.7
 #define NSWindowCollectionBehaviorFullScreenNone (1 << 9)
 
+// Returns whether the window is in macOS native full screen
+//
+static GLFWbool isSoftFullscreen(_GLFWwindow* window)
+{
+    return [window->ns.object styleMask] & NSWindowStyleMaskFullScreen;
+}
+
+// Set macOS native full screen without switching monitor video modes
+//
+static void setSoftFullscreen(_GLFWwindow* window, GLFWbool enabled)
+{
+    if (isSoftFullscreen(window) == enabled)
+        return;
+
+    NSUInteger styleMask = [window->ns.object styleMask];
+
+    // Native full screen requires a resizable window style
+    styleMask |= NSWindowStyleMaskResizable;
+    [window->ns.object setStyleMask:styleMask];
+
+    [window->ns.object toggleFullScreen:nil];
+
+    if (!window->resizable)
+    {
+        styleMask &= ~NSWindowStyleMaskResizable;
+        [window->ns.object setStyleMask:styleMask];
+    }
+}
+
 // Returns whether the cursor is in the content area of the specified window
 //
 static GLFWbool cursorInContentArea(_GLFWwindow* window)
@@ -1062,6 +1091,13 @@ GLFWbool _glfwCreateWindowCocoa(_GLFWwindow* window,
 {
     @autoreleasepool {
 
+    GLFWbool softFullscreen = GLFW_FALSE;
+    if (_glfw.hints.window.softFullscreen && window->monitor)
+    {
+        softFullscreen = GLFW_TRUE;
+        _glfwInputWindowMonitor(window, NULL);
+    }
+
     if (!createNativeWindow(window, wndconfig, fbconfig))
         return GLFW_FALSE;
 
@@ -1125,6 +1161,9 @@ GLFWbool _glfwCreateWindowCocoa(_GLFWwindow* window,
            selector:@selector(imeStatusChangeNotified:)
                name:NSTextInputContextKeyboardSelectionDidChangeNotification
              object:nil];
+
+    if (softFullscreen)
+        setSoftFullscreen(window, GLFW_TRUE);
 
     return GLFW_TRUE;
 
@@ -1393,6 +1432,14 @@ void _glfwSetWindowMonitorCocoa(_GLFWwindow* window,
                                 int refreshRate)
 {
     @autoreleasepool {
+
+    if (_glfw.hints.window.softFullscreen)
+    {
+        setSoftFullscreen(window, monitor != NULL);
+
+        if (monitor)
+            return;
+    }
 
     if (window->monitor == monitor)
     {

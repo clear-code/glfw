@@ -11,9 +11,20 @@ option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" ${GLFW_STANDALONE})
 option(GLFW_BUILD_TESTS "Build the GLFW test programs" ${GLFW_STANDALONE})
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" ON)
 option(GLFW_INSTALL "Generate installation target" ON)
+option(GLFW_INFER_TEXT_INPUT_FOCUS
+       "Infer text input focus from legacy IME and cursor input state" OFF)
 
 include(GNUInstallDirs)
 include(CMakeDependentOption)
+
+set(GLFW_IME_MODULE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/glfw" CACHE PATH
+    "Install directory for experimental X11 IME modules")
+if (IS_ABSOLUTE "${GLFW_IME_MODULE_INSTALL_DIR}")
+    set(GLFW_IME_MODULE_INSTALL_FULL_DIR "${GLFW_IME_MODULE_INSTALL_DIR}")
+else()
+    set(GLFW_IME_MODULE_INSTALL_FULL_DIR
+        "${CMAKE_INSTALL_PREFIX}/${GLFW_IME_MODULE_INSTALL_DIR}")
+endif()
 
 if (GLFW_USE_OSMESA)
     message(FATAL_ERROR "GLFW_USE_OSMESA has been removed; set the GLFW_PLATFORM init hint")
@@ -28,6 +39,12 @@ cmake_dependent_option(GLFW_BUILD_WIN32 "Build support for Win32" ON "WIN32" OFF
 cmake_dependent_option(GLFW_BUILD_COCOA "Build support for Cocoa" ON "APPLE" OFF)
 cmake_dependent_option(GLFW_BUILD_X11 "Build support for X11" ON "UNIX;NOT APPLE" OFF)
 cmake_dependent_option(GLFW_BUILD_WAYLAND "Build support for Wayland" ON "UNIX;NOT APPLE" OFF)
+cmake_dependent_option(GLFW_EMBED_IBUS_MODULE
+                       "Embed the experimental X11 IBus IME module into GLFW"
+                       OFF "UNIX;NOT APPLE;GLFW_BUILD_X11" OFF)
+cmake_dependent_option(GLFW_INSTALL_IME_MODULES
+                       "Install experimental X11 IME modules"
+                       OFF "UNIX;NOT APPLE;GLFW_BUILD_X11;GLFW_INSTALL" OFF)
 
 cmake_dependent_option(GLFW_USE_HYBRID_HPG "Force use of high-performance GPU on hybrid systems" OFF
                        "WIN32" OFF)
@@ -133,4 +150,3 @@ if (GLFW_INSTALL)
         set_target_properties(uninstall PROPERTIES FOLDER "GLFW3")
     endif()
 endif()
-

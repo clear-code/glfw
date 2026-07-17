@@ -50,6 +50,8 @@
 // The Shape extension provides custom window shapes
 #include <X11/extensions/shape.h>
 
+#include "x11_ime_module.h"
+
 #define GLX_VENDOR 1
 #define GLX_RGBA_BIT 0x00000001
 #define GLX_WINDOW_BIT 0x00000001
@@ -565,6 +567,15 @@ typedef struct _GLFWwindowX11
     XIMCallback statusDrawCallback;
 
     int imeFocus;
+    GLFWbool imeCursorRectValid;
+    GLFWbool imeCursorRectSent;
+    GLFWbool imeLogNextKey;
+    GLFWbool imeNormalKeySeen;
+    GLFWbool imeCursorRectPending;
+    int imeCursorRectRetries;
+    int imeCursorX, imeCursorY, imeCursorWidth, imeCursorHeight;
+    int imeWindowRootX, imeWindowRootY;
+    int imeCursorRootX, imeCursorRootY;
 } _GLFWwindowX11;
 
 // X11-specific global data
@@ -898,6 +909,13 @@ typedef struct _GLFWlibraryX11
         PFN_XShapeQueryVersion QueryVersion;
         PFN_XShapeCombineMask ShapeCombineMask;
     } xshape;
+
+    struct {
+        void*                  handle;
+        GLFWx11IMEBackend*     backend;
+        GLFWx11IMEBackendAPI   api;
+        GLFWbool               debug;
+    } imeModule;
 } _GLFWlibraryX11;
 
 // X11-specific per-monitor data

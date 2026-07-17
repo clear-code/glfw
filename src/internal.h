@@ -419,6 +419,7 @@ struct _GLFWwndconfig
     bool          mousePassthrough;
     bool          scaleToMonitor;
     bool          scaleFramebuffer;
+    bool          softFullscreen;
     struct {
         char      frameName[256];
     } ns;
@@ -596,6 +597,7 @@ struct _GLFWwindow
     // Preserve legacy text input behavior for backward compatibility until
     // glfwSetTextInputFocus is used for this window.
     GLFWbool            textInputFocusInitialized;
+    GLFWbool            textInputFocusRequested;
     GLFWbool            textInputFocus;
 
     int                 cursorMode;
@@ -1017,6 +1019,8 @@ void _glfwInputError(int code, const char* format, ...);
 //////////////////////////////////////////////////////////////////////////
 
 GLFWbool _glfwSelectPlatform(int platformID, _GLFWplatform* platform);
+
+GLFWbool _glfwInferTextInputFocus(void);
 
 GLFWbool _glfwStringInExtensionString(const char* string, const char* extensions);
 const _GLFWfbconfig* _glfwChooseFBConfig(const _GLFWfbconfig* desired,

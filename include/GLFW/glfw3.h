@@ -941,6 +941,12 @@ extern "C" {
  */
 #define GLFW_POSITION_Y             0x0002000F
 
+/*! @brief Soft full screen window hint.
+ *
+ *  Soft full screen [window hint](@ref GLFW_SOFT_FULLSCREEN_hint).
+ */
+#define GLFW_SOFT_FULLSCREEN        0x00020010
+
 /*! @brief Framebuffer bit depth hint.
  *
  *  Framebuffer bit depth [hint](@ref GLFW_RED_BITS).

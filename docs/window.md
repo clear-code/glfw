@@ -277,6 +277,12 @@ either or both of these hints are set to `GLFW_ANY_POSITION` then the window
 manager will position the window where it thinks the user will prefer it.
 Possible values are any valid screen coordinates and `GLFW_ANY_POSITION`.
 
+@anchor GLFW_SOFT_FULLSCREEN_hint
+__GLFW_SOFT_FULLSCREEN__ specifies whether full screen windows should avoid
+exclusive full screen behavior where supported.  This can allow system UI such
+as input method windows, notifications or overlays to appear above a full screen
+window.  Possible values are `GLFW_TRUE` and `GLFW_FALSE`.
+
 
 #### Framebuffer related hints {#window_hints_fb}
 
@@ -548,6 +554,7 @@ GLFW_SCALE_FRAMEBUFFER        | `GLFW_TRUE`                 | `GLFW_TRUE` or `GL
 GLFW_MOUSE_PASSTHROUGH        | `GLFW_FALSE`                | `GLFW_TRUE` or `GLFW_FALSE`
 GLFW_POSITION_X               | `GLFW_ANY_POSITION`         | Any valid screen x-coordinate or `GLFW_ANY_POSITION`
 GLFW_POSITION_Y               | `GLFW_ANY_POSITION`         | Any valid screen y-coordinate or `GLFW_ANY_POSITION`
+GLFW_SOFT_FULLSCREEN          | `GLFW_FALSE`                | `GLFW_TRUE` or `GLFW_FALSE`
 GLFW_RED_BITS                 | 8                           | 0 to `INT_MAX` or `GLFW_DONT_CARE`
 GLFW_GREEN_BITS               | 8                           | 0 to `INT_MAX` or `GLFW_DONT_CARE`
 GLFW_BLUE_BITS                | 8                           | 0 to `INT_MAX` or `GLFW_DONT_CARE`
