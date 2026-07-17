@@ -41,16 +41,18 @@ be embedded into GLFW with the `GLFW_EMBED_IBUS_MODULE` CMake option.  In that
 mode, GLFW uses the embedded backend when `GLFW_IM_MODULE` is not set, while
 still allowing `GLFW_IM_MODULE` to override it.
 
-The standalone IBus IME module is not installed by default.  Configure with
-`-DGLFW_INSTALL_IME_MODULES=ON` to install `glfw-ibus.so`.  The default install
-location is `${CMAKE_INSTALL_LIBDIR}/glfw` relative to the install prefix,
-typically `lib/glfw` under that prefix.  For example, with the default
-`/usr/local` prefix this is usually `/usr/local/lib/glfw`.
+The standalone IME modules are not installed by default.  Configure with
+`-DGLFW_INSTALL_IME_MODULES=ON` to install `glfw-ibus.so` and
+`glfw-fcitx5.so`.  The default install location is
+`${CMAKE_INSTALL_LIBDIR}/glfw` relative to the install prefix, typically
+`lib/glfw` under that prefix.  For example, with the default `/usr/local`
+prefix this is usually `/usr/local/lib/glfw`.
 
 When `GLFW_IM_MODULE` does not contain a `/`, GLFW also searches this default
 module directory.  The `glfw-` prefix and platform module suffix may be omitted,
-so `GLFW_IM_MODULE=ibus` loads the installed `glfw-ibus.so` module.  Full paths
-continue to be loaded as specified.
+so `GLFW_IM_MODULE=ibus` and `GLFW_IM_MODULE=fcitx5` load the installed
+`glfw-ibus.so` and `glfw-fcitx5.so` modules.  Full paths continue to be loaded
+as specified.
 
 ### GLFW Core
 
@@ -89,7 +91,8 @@ does not add D-Bus file descriptors to the GLFW event loop.
 ### Dynamically Loaded Module
 
 The prototype module is built as `glfw-ibus.so` when the `dbus-1` development
-package is available.
+package is available.  A separate native Fcitx5 experiment is built as
+`glfw-fcitx5.so` from the same private X11 IME module ABI.
 
 If `GLFW_EMBED_IBUS_MODULE` is enabled, the same module source is also compiled
 into the GLFW library and `dbus-1` becomes a GLFW build dependency.  This is
@@ -106,6 +109,54 @@ The module owns:
 - worker thread lifetime
 - request and event queues
 - timing instrumentation
+
+### Native Fcitx5 Experiment
+
+The native Fcitx5 module is a sibling of the IBus module.  It is loaded with the
+same runtime mechanism:
+
+```sh
+GLFW_IM_MODULE=/path/to/glfw-fcitx5.so ./application
+```
+
+It keeps Fcitx5 and D-Bus protocol knowledge inside the module.  GLFW core still
+only sees the private X11 IME backend ABI.
+
+The module connects to Fcitx5 through the session bus name `org.fcitx.Fcitx5`,
+creates an input context with `org.fcitx.Fcitx.InputMethod1.CreateInputContext`,
+then talks to the returned `org.fcitx.Fcitx.InputContext1` object.  It currently
+uses:
+
+- `SetCapability`
+- `FocusIn`
+- `FocusOut`
+- `Reset`
+- `SetCursorRect`
+- `ProcessKeyEvent`
+- `CommitString`
+- `UpdateFormattedPreedit`
+- `NotifyFocusOut`
+
+The first version intentionally maps Fcitx5 formatted preedit segments directly
+to GLFW preedit blocks.  This preserves useful segmentation without exposing
+Fcitx5 formatting values to GLFW core.
+
+The module treats a non-zero formatted-preedit segment format as the focused
+GLFW preedit block.  If no formatted segment is marked, it falls back to using
+the reported caret position.
+
+Unlike the IBus module, the Fcitx5 module sends the X11 keycode received from
+GLFW directly to `ProcessKeyEvent`.  Fcitx5 appears to interpret this field as
+an XKB keycode.  Using the IBus-style `keycode - 8` conversion caused obvious
+layout mismatches, such as the Enter key being interpreted as `t`.
+
+The module retries connection to Fcitx5 when startup, input context creation or
+key processing fails.  While disconnected, focus state is retained, key events
+are reported as not handled, and the worker retries connection periodically.
+
+Native Fcitx5 status control is intentionally left as future work.  The current
+prototype keeps status behavior minimal and focuses on commit, preedit,
+candidate positioning and key processing.
 
 ### Worker Thread
 
