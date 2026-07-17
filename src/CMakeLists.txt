@@ -259,8 +259,27 @@ if (GLFW_BUILD_X11)
                 install(TARGETS glfw-ibus
                         LIBRARY DESTINATION "${GLFW_IME_MODULE_INSTALL_DIR}")
             endif()
+
+            add_library(glfw-fcitx5 MODULE x11_fcitx5_module.c x11_ime_module.h)
+            set_target_properties(glfw-fcitx5 PROPERTIES
+                                  PREFIX ""
+                                  C_STANDARD 99
+                                  C_EXTENSIONS OFF
+                                  FOLDER "GLFW3")
+            target_include_directories(glfw-fcitx5 PRIVATE
+                                       "${GLFW_SOURCE_DIR}/src"
+                                       "${GLFW_SOURCE_DIR}/include"
+                                       ${DBUS1_INCLUDE_DIRS})
+            target_link_libraries(glfw-fcitx5 PRIVATE Threads::Threads ${DBUS1_LIBRARIES})
+            target_compile_options(glfw-fcitx5 PRIVATE ${DBUS1_CFLAGS_OTHER})
+            target_link_directories(glfw-fcitx5 PRIVATE ${DBUS1_LIBRARY_DIRS})
+
+            if (GLFW_INSTALL_IME_MODULES)
+                install(TARGETS glfw-fcitx5
+                        LIBRARY DESTINATION "${GLFW_IME_MODULE_INSTALL_DIR}")
+            endif()
         else()
-            message(STATUS "D-Bus development package not found; skipping glfw-ibus prototype module")
+            message(STATUS "D-Bus development package not found; skipping X11 IME prototype modules")
         endif()
     endif()
 endif()
