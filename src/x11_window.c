@@ -244,6 +244,27 @@ static int translateKey(int scancode)
     return _glfw.x11.keycodes[scancode];
 }
 
+static KeySym getKeySym(XKeyEvent* event, int keycode)
+{
+    if (_glfw.x11.xkb.available)
+        return XkbKeycodeToKeysym(_glfw.x11.display, keycode, _glfw.x11.xkb.group, 0);
+
+    KeySym keysym = NoSymbol;
+    XLookupString(event, NULL, 0, &keysym, NULL);
+    return keysym;
+}
+
+static KeySym getIMEKeySym(XKeyEvent* event, int keycode)
+{
+    KeySym keysym = NoSymbol;
+    XLookupString(event, NULL, 0, &keysym, NULL);
+
+    if (keysym != NoSymbol)
+        return keysym;
+
+    return getKeySym(event, keycode);
+}
+
 // Sends an EWMH or ICCCM event to the window manager
 //
 static void sendEventToWM(_GLFWwindow* window, Atom type,
@@ -365,7 +386,8 @@ static void updateWindowMode(_GLFWwindow* window)
         // Enable compositor bypass
         if (!window->x11.transparent)
         {
-            const unsigned long value = 1;
+            const unsigned long value =
+                _glfw.hints.window.softFullscreen ? 2 : 1;
 
             XChangeProperty(_glfw.x11.display,  window->x11.handle,
                             _glfw.x11.NET_WM_BYPASS_COMPOSITOR, XA_CARDINAL, 32,
@@ -1357,12 +1379,18 @@ static void processEvent(XEvent *event)
 {
     int keycode = 0;
     Bool filtered = False;
+    const GLFWbool imeModuleActive = _glfwHasIMEModuleX11();
 
     // HACK: Save scancode as some IMs clear the field in XFilterEvent
     if (event->type == KeyPress || event->type == KeyRelease)
         keycode = event->xkey.keycode;
 
-    filtered = XFilterEvent(event, None);
+    if (!imeModuleActive)
+    {
+        filtered = XFilterEvent(event, None);
+        if (filtered)
+            return;
+    }
 
     if (_glfw.x11.randr.available)
     {
@@ -1455,6 +1483,24 @@ static void processEvent(XEvent *event)
             const int key = translateKey(keycode);
             const int mods = translateState(event->xkey.state);
             const int plain = !(mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT));
+            const KeySym imeKeysym = getIMEKeySym(&event->xkey, keycode);
+            const GLFWbool textInputFocused =
+                !window->textInputFocusInitialized || window->textInputFocus;
+            GLFWbool moduleHandled = GLFW_FALSE;
+
+            if (imeModuleActive && textInputFocused)
+            {
+                moduleHandled =
+                    _glfwProcessKeyIMEModuleX11(window, keycode, (unsigned int) imeKeysym,
+                                                event->xkey.state, GLFW_PRESS, mods,
+                                                event->xkey.time);
+            }
+
+            if (imeModuleActive && window->x11.imeLogNextKey)
+                window->x11.imeLogNextKey = GLFW_FALSE;
+
+            if (moduleHandled)
+                return;
 
             if (window->x11.ic)
             {
@@ -1519,6 +1565,9 @@ static void processEvent(XEvent *event)
                     _glfwInputChar(window, codepoint, mods, plain);
             }
 
+            if (imeModuleActive)
+                _glfwNotifyNormalKeyIMEModuleX11(window);
+
             return;
         }
 
@@ -1526,6 +1575,9 @@ static void processEvent(XEvent *event)
         {
             const int key = translateKey(keycode);
             const int mods = translateState(event->xkey.state);
+            const KeySym imeKeysym = getIMEKeySym(&event->xkey, keycode);
+            const GLFWbool textInputFocused =
+                !window->textInputFocusInitialized || window->textInputFocus;
 
             if (!_glfw.x11.xkb.detectable)
             {
@@ -1557,6 +1609,15 @@ static void processEvent(XEvent *event)
                         }
                     }
                 }
+            }
+
+            if (imeModuleActive && textInputFocused &&
+                _glfwProcessKeyIMEModuleX11(window, keycode, (unsigned int) imeKeysym,
+                                            event->xkey.state, GLFW_RELEASE, mods,
+                                            event->xkey.time))
+            {
+                _glfwInputKey(window, key, keycode, GLFW_RELEASE, mods);
+                return;
             }
 
             _glfwInputKey(window, key, keycode, GLFW_RELEASE, mods);
@@ -1966,6 +2027,8 @@ static void processEvent(XEvent *event)
             {
                 XSetICFocus(window->x11.ic);
             }
+            else if (!window->textInputFocusInitialized || window->textInputFocus)
+                _glfwFocusInIMEModuleX11(window);
 
             _glfwInputWindowFocus(window, GLFW_TRUE);
             return;
@@ -1988,6 +2051,8 @@ static void processEvent(XEvent *event)
 
             if (window->x11.ic)
                 XUnsetICFocus(window->x11.ic);
+            else
+                _glfwFocusOutIMEModuleX11(window);
 
             if (window->monitor && window->autoIconify)
                 _glfwIconifyWindowX11(window);
@@ -2273,6 +2338,9 @@ GLFWbool _glfwCreateWindowX11(_GLFWwindow* window,
     if (wndconfig->mousePassthrough)
         _glfwSetWindowMousePassthroughX11(window, GLFW_TRUE);
 
+    if (_glfwHasIMEModuleX11())
+        window->x11.imeLogNextKey = GLFW_TRUE;
+
     if (window->monitor)
     {
         _glfwShowWindowX11(window);
@@ -2309,6 +2377,8 @@ void _glfwDestroyWindowX11(_GLFWwindow* window)
         XDestroyIC(window->x11.ic);
         window->x11.ic = NULL;
     }
+    else
+        _glfwFocusOutIMEModuleX11(window);
 
     if (window->context.destroy)
         window->context.destroy(window);
@@ -3056,6 +3126,8 @@ GLFWbool _glfwRawMouseMotionSupportedX11(void)
 void _glfwPollEventsX11(void)
 {
     drainEmptyEvents();
+    _glfwRefreshPendingCursorRectsIMEModuleX11("event-drain");
+    _glfwDrainIMEModuleX11();
 
 #if defined(GLFW_BUILD_LINUX_JOYSTICK)
     if (_glfw.joysticksInitialized)
@@ -3068,6 +3140,8 @@ void _glfwPollEventsX11(void)
         XEvent event;
         XNextEvent(_glfw.x11.display, &event);
         processEvent(&event);
+        _glfwRefreshPendingCursorRectsIMEModuleX11("after-event");
+        _glfwDrainIMEModuleX11();
     }
 
     _GLFWwindow* window = _glfw.x11.disabledCursorWindow;
@@ -3086,6 +3160,8 @@ void _glfwPollEventsX11(void)
     }
 
     XFlush(_glfw.x11.display);
+    _glfwRefreshPendingCursorRectsIMEModuleX11("poll-end");
+    _glfwDrainIMEModuleX11();
 }
 
 void _glfwWaitEventsX11(void)
@@ -3366,6 +3442,16 @@ void _glfwUpdatePreeditCursorRectangleX11(_GLFWwindow* window)
     XPoint spot;
     _GLFWpreedit* preedit = &window->preedit;
 
+    if (_glfwHasIMEModuleX11())
+    {
+        _glfwSetCursorRectIMEModuleX11(window,
+                                       preedit->cursorPosX,
+                                       preedit->cursorPosY,
+                                       preedit->cursorWidth,
+                                       preedit->cursorHeight);
+        return;
+    }
+
     if (!window->x11.ic)
         return;
 
@@ -3385,6 +3471,12 @@ void _glfwResetPreeditTextX11(_GLFWwindow* window)
     XIMPreeditState preedit_state = XIMPreeditUnKnown;
     XVaNestedList preedit_attr;
     char* result;
+
+    if (_glfwHasIMEModuleX11())
+    {
+        _glfwResetIMEModuleX11(window);
+        return;
+    }
 
     if (!ic)
         return;
@@ -3419,6 +3511,12 @@ void _glfwSetIMEStatusX11(_GLFWwindow* window, int active)
 {
     XIC ic = window->x11.ic;
 
+    if (_glfwHasIMEModuleX11())
+    {
+        _glfwSetStatusIMEModuleX11(window, active);
+        return;
+    }
+
     if (!ic)
         return;
 
@@ -3436,6 +3534,22 @@ void _glfwSetTextInputFocusX11(_GLFWwindow* window, GLFWbool focused)
 {
     XIC ic = window->x11.ic;
 
+    if (_glfwHasIMEModuleX11())
+    {
+        if (focused)
+        {
+            if (_glfwWindowFocusedX11(window))
+                _glfwFocusInIMEModuleX11(window);
+        }
+        else
+        {
+            _glfwResetPreeditTextX11(window);
+            _glfwFocusOutIMEModuleX11(window);
+        }
+
+        return;
+    }
+
     if (!ic)
         return;
 
@@ -3450,6 +3564,9 @@ void _glfwSetTextInputFocusX11(_GLFWwindow* window, GLFWbool focused)
 
 int _glfwGetIMEStatusX11(_GLFWwindow* window)
 {
+    if (_glfwHasIMEModuleX11())
+        return _glfwGetStatusIMEModuleX11(window);
+
     if (!window->x11.ic)
         return GLFW_FALSE;
 
